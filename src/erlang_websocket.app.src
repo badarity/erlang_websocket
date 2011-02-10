@@ -1,2 +1,2 @@
-{application, erlang_websocket, [{description, "WebSockets server conforming to latest spec.",
+{application, erlang_websocket, [{description, "WebSockets server conforming to latest spec."},
 				 {vsn, "0.1"}]}.
