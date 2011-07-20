@@ -50,26 +50,26 @@ This is a pure Erlang WebSocket client you can use to call a WebSocket Server fr
 -behaviour(websocket_client).
 -export([start/0]).
 %% websocket specific callbacks
--export([onmessage/1,onopen/0,onclose/0,close/0,send/1]).
+-export([ws_onmessage/1,ws_onopen/0,ws_onclose/0,ws_close/0,ws_send/1]).
 
-send(Data) ->
+ws_send(Data) ->
     websocket_client:write(Data).
 
-start() ->
+ws_start() ->
     websocket_client:start("localhost",8002,?MODULE).
 
 %% Handle incoming messages here
-onmessage(Data) ->
+ws_onmessage(Data) ->
     io:format("Got some data:: ~p~n",[Data]).
 
-onclose() ->
+ws_onclose() ->
     io:format("Connection closed~n").
 
-onopen() ->
+ws_onopen() ->
     io:format("Connection open~n"),
     send("client-connected").
 
-close() ->
+ws_close() ->
     websocket_client:close().
 
  </code>
@@ -79,9 +79,9 @@ Here's an example of using the client from an erl shell:
 
 <pre>
  <code>
-> sample:start().
-> sample:send("Hello there").
-> sample:close().
+> sample:ws_start().
+> sample:ws_send("Hello there").
+> sample:ws_close().
  </code>
 </pre>
 
