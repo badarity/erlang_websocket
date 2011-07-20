@@ -28,7 +28,7 @@
 -export([behaviour_info/1]).
 
 behaviour_info(callbacks) ->
-    [{onmessage,1},{onopen,0},{onclose,0},{close,0},{send,1}];
+    [{ws_onmessage,1},{ws_onopen,0},{ws_onclose,0},{ws_close,0},{ws_send,1}];
 behaviour_info(_) ->
     undefined.
 
@@ -65,7 +65,7 @@ handle_cast({send,Data}, State) ->
 
 handle_cast(close,State) ->
     Mod = State#state.callback,
-    Mod:onclose(),
+    Mod:ws_onclose(),
     gen_tcp:close(State#state.socket),
     State1 = State#state{readystate=?CLOSED},
     {stop,normal,State1}.
@@ -98,7 +98,7 @@ handle_info({http,Socket,http_eoh},State) ->
 		     inet:setopts(Socket, [{packet, raw}]),
 		     State1 = State#state{readystate=?OPEN,socket=Socket},
 		     Mod = State#state.callback,
-		     Mod:onopen(),
+		     Mod:ws_onopen(),
 		     {noreply,State1};
 		 _Any  ->
 		     {stop,error,State}
@@ -114,7 +114,7 @@ handle_info({tcp, _Socket, Data},State) ->
 	?OPEN ->
 	    D = unframe(binary_to_list(Data)),
 	    Mod = State#state.callback,
-	    Mod:onmessage(D),
+	    Mod:ws_onmessage(D),
 	    {noreply,State};
 	_Any ->
 	    {stop,error,State}
@@ -122,7 +122,7 @@ handle_info({tcp, _Socket, Data},State) ->
 
 handle_info({tcp_closed, _Socket},State) ->
     Mod = State#state.callback,
-    Mod:onclose(),
+    Mod:ws_onclose(),
     {stop,normal,State};
 
 handle_info({tcp_error, _Socket, _Reason},State) ->
