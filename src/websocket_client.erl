@@ -148,7 +148,7 @@ initial_request(Host,Path) ->
     "GET "++ Path ++" HTTP/1.1\r\nUpgrade: WebSocket\r\nConnection: Upgrade\r\n" ++ 
 	"Host: " ++ Host ++ "\r\n" ++
 	"Origin: http://" ++ Host ++ "/\r\n\r\n" ++
-        "draft-hixie: 68"
+        "draft-hixie: 68".
 
 
 unframe([0|T]) -> unframe1(T).
