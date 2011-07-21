@@ -135,7 +135,7 @@ handle_call(_Request,_From,State) ->
     {reply,ok,State}.
 
 terminate(Reason, _State) ->
-    error_logger:info_msg("Terminated ~p~n",[Reason]),
+    error_logger:info_msg("Websocket Client Terminated ~p~n",[Reason]),
     ok.
 
 code_change(_OldVsn, State, _Extra) ->
