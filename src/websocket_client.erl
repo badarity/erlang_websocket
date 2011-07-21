@@ -129,7 +129,11 @@ handle_info({tcp_error, _Socket, _Reason},State) ->
     {stop,tcp_error,State};
 
 handle_info({'EXIT', _Pid, _Reason},State) ->
-    {noreply,State}.
+    {noreply,State};
+  
+handle_info(Request, State) ->
+    error_logger:info_msg("Unknown request ~p~n",[Request]),
+    {noreply, State}.
 
 handle_call(_Request,_From,State) ->
     {reply,ok,State}.
