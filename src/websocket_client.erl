@@ -129,12 +129,8 @@ handle_info({tcp_error, _Socket, _Reason},State) ->
     {stop,tcp_error,State};
 
 handle_info({'EXIT', _Pid, _Reason},State) ->
-    {noreply,State};
+    {noreply,State}.
   
-handle_info(Request, State) ->
-    error_logger:info_msg("Unknown request ~p~n",[Request]),
-    {noreply, State}.
-
 handle_call(_Request,_From,State) ->
     {reply,ok,State}.
 
@@ -151,7 +147,8 @@ code_change(_OldVsn, State, _Extra) ->
 initial_request(Host,Path) ->
     "GET "++ Path ++" HTTP/1.1\r\nUpgrade: WebSocket\r\nConnection: Upgrade\r\n" ++ 
 	"Host: " ++ Host ++ "\r\n" ++
-	"Origin: http://" ++ Host ++ "/\r\n\r\n".
+	"Origin: http://" ++ Host ++ "/\r\n\r\n" ++
+        "draft-hixie: 68"
 
 
 unframe([0|T]) -> unframe1(T).
