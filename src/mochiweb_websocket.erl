@@ -32,7 +32,7 @@ set_defaults(Defaults, PropList) ->
 parse_options(Options) ->
     {loop, MyLoop} = proplists:lookup(loop, Options),
     Loop = fun (S) ->
-                   ?MODULE:loop(S, MyLoop)
+              ?MODULE:loop(S, MyLoop)
            end,
     Options1 = [{loop, Loop} | proplists:delete(loop, Options)],
     set_defaults(?DEFAULTS, Options1).
@@ -63,15 +63,15 @@ loop(Socket, MyLoop) ->
 
 handshake(Socket,MyLoop) ->
     case gen_tcp:recv(Socket, 0) of
-	{ok, {http_request, _Method, Path, _Version}} ->
-	    {abs_path,PathA} = Path,
-	    check_header(Socket,PathA,[],MyLoop);
-	{error, {http_error, "\r\n"}} ->
+        {ok, {http_request, _Method, Path, _Version}} ->
+            {abs_path,PathA} = Path,
+            check_header(Socket,PathA,[],MyLoop);
+        {error, {http_error, "\r\n"}} ->
             handshake(Socket, MyLoop);
         {error, {http_error, "\n"}} ->
             handshake(Socket, MyLoop);
         Other ->
-	    io:format("Got: ~p~n",[Other]),
+            io:format("Got: ~p~n",[Other]),
             gen_tcp:close(Socket),
             exit(normal)
     end.
@@ -79,8 +79,8 @@ handshake(Socket,MyLoop) ->
 check_header(Socket,Path,Headers,MyLoop) ->
     case gen_tcp:recv(Socket, 0) of
         {ok, http_eoh} ->
-	    verify_handshake(Socket,Path,Headers),
-	    %% Set packet back to raw for the rest of the connection
+            verify_handshake(Socket,Path,Headers),
+            %% Set packet back to raw for the rest of the connection
             inet:setopts(Socket, [{packet, raw}]),
             request(Socket,MyLoop);
         {ok, {http_header, _, Name, _, Value}} ->
@@ -94,11 +94,11 @@ verify_handshake(Socket,Path,Headers) ->
     error_logger:info_msg("Incoming Headers: ~p~n",[Headers]),
     
     case proplists:get_value('Upgrade',Headers) of
-	"WebSocket" ->
-	    send_handshake(Socket,Path,Headers);
-	_Other ->
-	    error_logger:error_msg("Incorrect WebSocket headers. Closing the connection~n"),
-	    gen_tcp:close(Socket),
+        "WebSocket" ->
+            send_handshake(Socket,Path,Headers);
+        _Other ->
+            error_logger:error_msg("Incorrect WebSocket headers. Closing the connection~n"),
+            gen_tcp:close(Socket),
             exit(normal)
     end.
 
@@ -122,6 +122,7 @@ make_challenge(Part_1, Part_2, Key_3) ->
     %Sample = to_32bit_int(lists:flatten(io_lib:format("~8.16.0b~8.16.0b", [906585445, 179922739]))) ++ "WjN}|M(6",
     %error_logger:info_msg("Sample: ~p~n", [{Sample, erlang:md5(Sample)}]),
     to_32bit_int(lists:flatten(io_lib:format("~8.16.0b~8.16.0b", [Part_1, Part_2]))) ++ binary_to_list(Key_3).
+
 to_32bit_int(Parts) ->
     %error_logger:info_msg("to_32bit_int:Parts: ~p~n", [{Parts}]),
     to_32bit_int([], Parts).

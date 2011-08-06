@@ -13,10 +13,10 @@ get(socket) ->
 %% Return the data from the Socket. Parse it from the WebSocket format
 get_data() ->
     case gen_tcp:recv(Socket, 0) of
-	{ok,Data} ->
-	    unframe(binary_to_list(Data));
+        {ok,Data} ->
+            unframe(binary_to_list(Data));
         _Other ->
-	    exit(normal)
+            exit(normal)
     end.
 
 %% Send the data to the client. Format it in the WebSocket format
@@ -25,5 +25,6 @@ send(Data) ->
 
 %% Borrowed from Joe Armstrong's example
 unframe([0|T]) -> unframe1(T).
+
 unframe1([255]) -> [];
 unframe1([H|T]) -> [H|unframe1(T)].
