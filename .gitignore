@@ -1,0 +1,6 @@
+syntax: glob
+*.beam
+*.sw?
+.DS_Store
+
+syntax: regexp
