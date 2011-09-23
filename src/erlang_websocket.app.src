@@ -1,2 +1,12 @@
-{application, erlang_websocket, [{description, "WebSockets server conforming to latest spec."},
-        {vsn, "0.1"}]}.
+{application, erlang_websocket,
+ [
+  {description, "WebSockets server conforming to latest spec."},
+  {vsn, "0.1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { erlang_websocket_app, []}},
+  {env, []}
+ ]}.
