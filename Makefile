@@ -10,10 +10,11 @@ REBAR=./rebar
 
 .PHONY: rel deps
 
-all: clean deps compile xref test
+#all: clean deps compile xref test
+all: clean deps compile test
 
 deps:
-	@$(REBAR) update-deps
+	-@$(REBAR) update-deps
 	@$(REBAR) get-deps
 
 compile:
