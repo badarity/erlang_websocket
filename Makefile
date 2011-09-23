@@ -10,12 +10,13 @@ REBAR=./rebar
 
 .PHONY: rel deps
 
-#all: clean deps compile xref test
-all: clean deps compile test
+#all: clean deps compile xref eunit
+all: clean deps compile eunit
 
 deps:
 	-@$(REBAR) update-deps
 	@$(REBAR) get-deps
+	@svn checkout -r 553 http://pywebsocket.googlecode.com/svn/trunk/ deps/pywebsocket
 
 compile:
 	@$(REBAR) compile
@@ -32,7 +33,7 @@ edoc:
 distclean: clean relclean ballclean
 	@$(REBAR) delete-deps
 
-test:
+eunit:
 	@rm -rf .eunit
 	@mkdir -p .eunit
 	@$(REBAR) skip_deps=true eunit
