@@ -13,7 +13,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start/3,start/4,write/2,close/1]).
+-export([start/4,start/5,write/2,close/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -29,29 +29,30 @@
 -export([behaviour_info/1]).
 
 behaviour_info(callbacks) ->
-    [{ws_onmessage,1},{ws_onopen,1},{ws_onclose,0},{ws_close,0},{ws_send,1},
-     {ws_oninfo,1}];
+    [{init,1},{ws_onmessage,2},{ws_onopen,1},
+     {ws_onclose,1},{ws_oninfo,2}];
 behaviour_info(_) ->
     undefined.
 
 -record(state, {socket, readystate = undefined,
-                headers = [], callback, buffer = []}).
+                headers = [], callback, callback_state, buffer = []}).
 
-start(Host,Port,Mod) ->
-  start(Host,Port,"/",Mod).
+start(Host,Port,Mod,Args) ->
+  start(Host,Port,"/",Mod,Args).
   
-start(Host,Port,Path,Mod) ->
-    gen_server:start_link(?MODULE, [{Host,Port,Path,Mod}], []).
+start(Host,Port,Path,Mod,Args) ->
+    gen_server:start_link(?MODULE, [{Host,Port,Path,Mod,Args}], []).
 
 init(Args) ->
     %%process_flag(trap_exit,true),
-    [{Host,Port,Path,Mod}] = Args,
+    [{Host,Port,Path,Mod,CArgs}] = Args,
     {ok, Sock} = gen_tcp:connect(Host,Port,[binary,{packet, http},{active,true}]),
     
     Req = initial_request(Host,Path),
     ok = gen_tcp:send(Sock,Req),
+    {ok, CState} = Mod:init(CArgs),
     
-    {ok,#state{socket=Sock,callback=Mod}}.
+    {ok,#state{socket=Sock,callback=Mod,callback_state = CState}}.
 
 %% Write to the server
 write(Pid, Data) ->
@@ -66,11 +67,10 @@ handle_cast({send,Data}, State) ->
     {noreply, State};
 
 handle_cast(close,State) ->
-    Mod = State#state.callback,
-    Mod:ws_onclose(),
-    gen_tcp:close(State#state.socket),
-    State1 = State#state{readystate=?CLOSED},
-    {stop,normal,State1}.
+    State1 = callback_onclose(State),
+    gen_tcp:close(State1#state.socket),
+    State2 = State1#state{readystate=?CLOSED},
+    {stop,normal,State2}.
 
 %% Start handshake
 handle_info({http,Socket,{http_response,{1,1},101,"WebSocket Protocol Handshake"}}, State) ->
@@ -99,9 +99,7 @@ handle_info({http,Socket,http_eoh},State) ->
 		 "WebSocket" ->
 		     inet:setopts(Socket, [{packet, raw}]),
 		     State1 = State#state{readystate=?HANDSHAKE,socket=Socket},
-		     Mod = State#state.callback,
-		     Mod:ws_onopen(self()),
-		     {noreply,State1};
+		     {noreply,callback_onopen(State1)};
 		 _Any  ->
 		     {stop,error,State}
 	     end;
@@ -118,17 +116,13 @@ handle_info({tcp, _Socket, Data},State) ->
     case State#state.readystate of
 	?OPEN ->
 	    {Msgs, BufferedState} = unframe(binary_to_list(Data), State),
-	    Mod = State#state.callback,
-	    [ Mod:ws_onmessage(Msg) || Msg <- Msgs ],
-	    {noreply, BufferedState};
+	    {noreply, callback_send_messages(Msgs, BufferedState)};
 	_Any ->
 	    {stop,error,State}
     end;
 
 handle_info({tcp_closed, _Socket},State) ->
-    Mod = State#state.callback,
-    Mod:ws_onclose(),
-    {stop,normal,State};
+    {stop,normal,callback_onclose(State)};
 
 handle_info({tcp_error, _Socket, _Reason},State) ->
     {stop,tcp_error,State};
@@ -137,8 +131,7 @@ handle_info({'EXIT', _Pid, _Reason},State) ->
     {noreply,State};
 
 handle_info(Something, #state{callback = Mod} = State) ->
-    Mod:ws_oninfo(Something),
-    {noreply, State}.
+    {noreply, callback_oninfo(Something, State)}.
   
 handle_call(_Request,_From,State) ->
     {reply,ok,State}.
@@ -153,6 +146,41 @@ code_change(_OldVsn, State, _Extra) ->
 %%--------------------------------------------------------------------
 %%% Internal functions
 %%--------------------------------------------------------------------
+
+callback_send_messages(Msgs, State) ->
+    Sender = fun(Msg, PrevState) -> callback_onmessage(Msg, PrevState) end,
+    lists:foldl(Sender, State, Msgs).
+
+callback_onopen(State) ->
+    callback_default_call(ws_onopen, [], State).
+
+callback_onmessage(Msg, State) ->
+    callback_default_call(ws_onmessage, [Msg], State).
+
+callback_oninfo(Msg, State) ->
+    callback_default_call(ws_oninfo, [Msg], State).
+
+callback_onclose(State) ->
+    callback_closed_reply(callback_apply(ws_onclose, [], State), State).
+
+callback_closed_reply({ok, _CState} = Rep, State) ->
+    callback_reply(Rep, State).
+
+callback_default_call(Fun, Args, State) ->
+    callback_reply(callback_apply(Fun, Args, State), State).
+
+callback_apply(Fun, Args, #state{callback = Mod, callback_state = State}) ->
+    apply(Mod, Fun, Args ++ [State]).
+
+callback_reply({ok, CState}, State) ->
+    State#state{callback_state = CState};
+callback_reply({reply, Msg, CState}, State) ->
+    write(self(), Msg),
+    State#state{callback_state = CState};
+callback_reply({close, CState}, State) ->
+    close(self()),
+    State#state{callback_state = CState}.
+
 initial_request(Host,Path) ->
     "GET "++ Path ++" HTTP/1.1\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n" ++ 
 	"Host: " ++ Host ++ ":8081\r\n" ++
@@ -164,9 +192,14 @@ initial_request(Host,Path) ->
 sec_key() ->
     "18x 6]8vM;54 *(5:  {   U1]8  z [  8". %% HARDCODE
 
+unframe(Msg, #state{buffer = []} = State) ->
+    unframe_result(unframe2(Msg, [], []), State);
+
 unframe(Msg, #state{buffer = Buf} = State) ->
-    {Msgs, NewBuf} = unframe1(Msg, [], Buf),
-    {lists:reverse(Msgs), State#state{buffer = NewBuf}}.
+    unframe_result(unframe1(Msg, [], Buf), State).
+
+unframe_result({Msgs, Buffer}, State) ->
+    {lists:reverse(Msgs), State#state{buffer = Buffer}}.
 
 unframe1([255 | Msg], Msgs, ByteAcc) ->
     unframe2(Msg, [lists:reverse(ByteAcc) | Msgs], []);
