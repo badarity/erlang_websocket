@@ -109,8 +109,11 @@ handle_info({http,Socket,http_eoh},State) ->
     end;
 
 %% Handshake complete, handle packets
-handle_info({tcp, _Socket, <<_:128>>},#state{readystate = ?HANDSHAKE} = State) ->
-    {noreply, State#state{readystate = ?OPEN}};
+handle_info({tcp, _Socket, <<_:128, Rest/binary>>},
+            #state{readystate = ?HANDSHAKE} = State) ->
+    {Msgs, BufferedState} = unframe(binary_to_list(Rest), State),
+    OpenState = BufferedState#state{readystate = ?OPEN},
+    {noreply, callback_send_messages(Msgs, OpenState)};
 
 handle_info({tcp, _Socket, Data},State) ->
     case State#state.readystate of
