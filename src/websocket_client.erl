@@ -44,10 +44,8 @@ start(Host,Port,Path,Mod,Args) ->
     gen_server:start_link(?MODULE, [{Host,Port,Path,Mod,Args}], []).
 
 init(Args) ->
-    %%process_flag(trap_exit,true),
     [{Host,Port,Path,Mod,CArgs}] = Args,
     {ok, Sock} = gen_tcp:connect(Host,Port,[binary,{packet, http},{active,true}]),
-    
     Req = initial_request(Host,Path),
     ok = gen_tcp:send(Sock,Req),
     {ok, CState} = Mod:init(CArgs),
@@ -130,10 +128,7 @@ handle_info({tcp_closed, _Socket},State) ->
 handle_info({tcp_error, _Socket, _Reason},State) ->
     {stop,tcp_error,State};
 
-handle_info({'EXIT', _Pid, _Reason},State) ->
-    {noreply,State};
-
-handle_info(Something, #state{callback = Mod} = State) ->
+handle_info(Something, State) ->
     {noreply, callback_oninfo(Something, State)}.
   
 handle_call(_Request,_From,State) ->
